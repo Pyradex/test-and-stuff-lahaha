@@ -1,0 +1,5 @@
+# Requirements for LCSRC Utilities Bot
+discord.py[slash]>=2.0.0
+flask>=2.0.0
+gunicorn>=21.0.0
+aiohttp>=3.8.0
