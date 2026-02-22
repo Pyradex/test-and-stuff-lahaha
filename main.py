@@ -426,6 +426,43 @@ async def on_ready():
         status=discord.Status.idle
     )
     
+    # Send startup test message to audit channel
+    try:
+        audit_ch = guild.get_channel(AUDIT_CHANNEL_ID)
+        if audit_ch:
+            image_embed = discord.Embed()
+            image_embed.set_image(url=AUDIT_IMAGE_URL)
+            
+            text_embed = discord.Embed(
+                color=EMBED_COLOR,
+                timestamp=datetime.now()
+            )
+            
+            text_embed.add_field(
+                name="Community Member:",
+                value="LCSRC Utilities Bot",
+                inline=True
+            )
+            
+            text_embed.add_field(
+                name="Action:",
+                value="Bot started successfully! Audit logging is now active.",
+                inline=True
+            )
+            
+            text_embed.add_field(
+                name="Timestamp:",
+                value=f"<t:{int(datetime.now().timestamp())}>",
+                inline=False
+            )
+            
+            await audit_ch.send(embeds=[image_embed, text_embed])
+            logger.info("Startup test message sent to audit channel!")
+        else:
+            logger.warning("Could not send startup test - audit channel not found!")
+    except Exception as e:
+        logger.error(f"Error sending startup test: {e}")
+    
     logger.info("Bot is ready!")
 
 @bot.event
@@ -700,39 +737,46 @@ async def on_member_remove(member: discord.Member):
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     """Log member updates (nickname, roles, timeout, etc.)"""
+    logger.info(f"Member update event triggered for {before} (ID: {before.id}) in guild {before.guild.id}")
+    
     if before.guild.id != GUILD_ID:
+        logger.info(f"Ignoring member update - not our guild")
         return
-    
+
     changes = []
-    
+
     # Nickname change
     if before.nick != after.nick:
+        logger.info(f"Nickname changed: {before.nick} -> {after.nick}")
         old_nick = before.nick if before.nick else before.name
         new_nick = after.nick if after.nick else after.name
         changes.append(f"**Nickname:** `{old_nick}` → `{new_nick}`")
-    
+
     # Timeout change
     if before.timeout != after.timeout:
+        logger.info(f"Timeout changed: {before.timeout} -> {after.timeout}")
         if after.timeout:
             changes.append(f"**Timeout Set:** Until <t:{int(after.timeout.timestamp())}>")
         else:
             changes.append(f"**Timeout Removed**")
-    
+
     # Role changes
     before_roles = set(before.roles)
     after_roles = set(after.roles)
-    
+
     added_roles = after_roles - before_roles
     removed_roles = before_roles - after_roles
-    
+
     if added_roles:
+        logger.info(f"Roles added: {[r.name for r in added_roles]}")
         role_names = ", ".join([r.mention for r in added_roles])
         changes.append(f"**Roles Added:** {role_names}")
-    
+
     if removed_roles:
+        logger.info(f"Roles removed: {[r.name for r in removed_roles]}")
         role_names = ", ".join([r.mention for r in removed_roles])
         changes.append(f"**Roles Removed:** {role_names}")
-    
+
     if not changes:
         return
     
