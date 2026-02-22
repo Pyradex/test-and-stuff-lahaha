@@ -16,6 +16,7 @@ from discord.ext import commands
 # ============== CONFIGURATION ==============
 GUILD_ID = 1289789596238086194
 AUDIT_CHANNEL_NAME = "「📄」audit-logistics"
+AUDIT_CHANNEL_ID = 1474965686454325331  # Channel ID for audit logistics
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 # Embed Configuration
@@ -67,29 +68,27 @@ tree = bot.tree
 
 # ============== UTILITY FUNCTIONS ==============
 async def get_audit_channel(guild: discord.Guild) -> discord.TextChannel:
-    """Find or create the audit logistics channel"""
+    """Find the audit logistics channel by ID or name"""
+    # First try to get by ID
+    channel = guild.get_channel(AUDIT_CHANNEL_ID)
+    if channel:
+        logger.info(f"Found audit channel by ID: {channel.name}")
+        return channel
+    
+    # Fallback to name lookup
     channel = discord.utils.get(guild.text_channels, name=AUDIT_CHANNEL_NAME)
-    if not channel:
-        # Try to find with similar name (in case of formatting differences)
-        for ch in guild.text_channels:
-            if "audit" in ch.name.lower() and "logistic" in ch.name.lower():
-                channel = ch
-                break
+    if channel:
+        logger.info(f"Found audit channel by name: {channel.name}")
+        return channel
     
-    if not channel:
-        # Create the channel if it doesn't exist
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(send_messages=False),
-            guild.me: discord.PermissionOverwrite(send_messages=True)
-        }
-        channel = await guild.create_text_channel(
-            AUDIT_CHANNEL_NAME,
-            overwrites=overwrites,
-            topic="LCSRC Utilities Audit Logger"
-        )
-        logger.info(f"Created audit channel: {channel.name}")
+    # Try to find with similar name (in case of formatting differences)
+    for ch in guild.text_channels:
+        if "audit" in ch.name.lower() and "logistic" in ch.name.lower():
+            logger.info(f"Found audit channel by partial match: {ch.name}")
+            return ch
     
-    return channel
+    logger.warning("Audit channel not found!")
+    return None
 
 def format_action_details(audit_log_entry, action_type: str) -> str:
     """Format detailed action summary from audit log"""
@@ -286,6 +285,10 @@ async def send_audit_log(guild: discord.Guild, action_type: str, action_name: st
     try:
         channel = await get_audit_channel(guild)
         
+        if channel is None:
+            logger.error(f"Could not find audit channel for guild {guild.id}")
+            return
+        
         # Get user's nickname in the guild
         member_name = "Unknown"
         if user:
@@ -396,6 +399,17 @@ async def on_ready():
     if guild:
         logger.info(f"Connected to guild: {guild.name} (ID: {guild.id})")
         
+        # Log all text channels for debugging
+        channels = [f"{ch.name} (ID: {ch.id})" for ch in guild.text_channels]
+        logger.info(f"Available text channels: {channels}")
+        
+        # Check for audit channel
+        audit_ch = guild.get_channel(AUDIT_CHANNEL_ID)
+        if audit_ch:
+            logger.info(f"Audit channel found: {audit_ch.name} (ID: {audit_ch.id})")
+        else:
+            logger.warning(f"Audit channel with ID {AUDIT_CHANNEL_ID} not found!")
+        
         # Sync commands for this guild
         try:
             tree.copy_global_to(guild=guild)
@@ -408,8 +422,8 @@ async def on_ready():
     
     # Change bot status
     await bot.change_presence(
-        activity=discord.Game(name="LCSRC Utilities | Audit Logger"),
-        status=discord.Status.online
+        activity=discord.Game(name="Fulfilling Community Needs"),
+        status=discord.Status.idle
     )
     
     logger.info("Bot is ready!")
