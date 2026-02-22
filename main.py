@@ -59,7 +59,6 @@ intents.presences = False  # Disable if not needed for privacy
 bot = commands.Bot(
     command_prefix="!",
     intents=intents,
-    application_id=None,  # Will be set on ready
     help_command=None
 )
 
@@ -391,9 +390,6 @@ async def log_audit_entry(guild: discord.Guild, entry: discord.AuditLogEntry):
 async def on_ready():
     """Bot is ready and connected"""
     logger.info(f"Bot logged in as {bot.user} (ID: {bot.user.id})")
-    
-    # Set application ID
-    bot.application_id = bot.user.id
     
     # Get the guild
     guild = bot.get_guild(GUILD_ID)
