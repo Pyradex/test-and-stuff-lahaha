@@ -63,8 +63,8 @@ bot = commands.Bot(
     help_command=None
 )
 
-# Sync tree for slash commands
-tree = app_commands.CommandTree(bot)
+# Sync tree for slash commands (use bot's built-in tree)
+tree = bot.tree
 
 # ============== UTILITY FUNCTIONS ==============
 async def get_audit_channel(guild: discord.Guild) -> discord.TextChannel:
