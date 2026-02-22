@@ -457,15 +457,25 @@ async def on_message(message: discord.Message):
 @bot.event
 async def on_message_delete(message: discord.Message):
     """Log deleted messages"""
+    logger.info(f"Message delete event triggered for guild: {message.guild.id if message.guild else 'None'}")
+    
     if message.guild is None or message.guild.id != GUILD_ID:
+        logger.info(f"Ignoring message delete - not our guild")
         return
-    
+
     if message.author.bot:
+        logger.info(f"Ignoring bot message delete")
         return
-    
+
     try:
         channel = await get_audit_channel(message.guild)
         
+        if channel is None:
+            logger.error("Audit channel not found for message delete!")
+            return
+            
+        logger.info(f"Sending message delete log to {channel.name}")
+
         # Get user's nickname
         member_name = message.author.nick if message.author.nick else message.author.name
         
@@ -568,11 +578,20 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
 @bot.event
 async def on_member_join(member: discord.Member):
     """Log member join"""
-    if member.guild.id != GUILD_ID:
-        return
+    logger.info(f"Member join event: {member} in guild {member.guild.id}")
     
+    if member.guild.id != GUILD_ID:
+        logger.info(f"Ignoring member join - not our guild")
+        return
+
     try:
         channel = await get_audit_channel(member.guild)
+        
+        if channel is None:
+            logger.error("Audit channel not found for member join!")
+            return
+        
+        logger.info(f"Sending member join log to {channel.name}")
         
         member_name = member.nick if member.nick else member.name
         
@@ -1437,6 +1456,48 @@ async def ping_command(interaction: discord.Interaction):
         ),
         ephemeral=True
     )
+
+@tree.command(name="testaudit", description="Test the audit logger", guild=discord.Object(id=GUILD_ID))
+async def test_audit(interaction: discord.Interaction):
+    """Test if audit logging is working"""
+    await interaction.response.send_message("Testing audit logger...", ephemeral=True)
+    
+    guild = interaction.guild
+    channel = await get_audit_channel(guild)
+    
+    if channel is None:
+        await interaction.followup.send("❌ Audit channel not found!", ephemeral=True)
+        return
+    
+    # Send a test message
+    image_embed = discord.Embed()
+    image_embed.set_image(url=AUDIT_IMAGE_URL)
+    
+    text_embed = discord.Embed(
+        color=EMBED_COLOR,
+        timestamp=datetime.now()
+    )
+    
+    text_embed.add_field(
+        name="Community Member:",
+        value=interaction.user.nick if interaction.user.nick else interaction.user.name,
+        inline=True
+    )
+    
+    text_embed.add_field(
+        name="Action:",
+        value="Test audit log message - This is a test to verify the audit logger is working correctly!",
+        inline=True
+    )
+    
+    text_embed.add_field(
+        name="Timestamp:",
+        value=f"<t:{int(datetime.now().timestamp())}>",
+        inline=False
+    )
+    
+    await channel.send(embeds=[image_embed, text_embed])
+    await interaction.followup.send("✅ Test audit message sent!", ephemeral=True)
 
 # ============== MAIN ==============
 if __name__ == "__main__":
